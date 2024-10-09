@@ -20,6 +20,7 @@ import Image from "next/image";
 import {useRouter} from "next/navigation";
 import {signIn} from "next-auth/react";
 import Link from "next/link";
+import {useToast} from "@/hooks/use-toast";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -31,7 +32,11 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGithubLoading, setIsGithubLoading] = useState(false);
+
+  const {toast} = useToast();
   const router = useRouter();
 
   const form = useForm({
@@ -44,7 +49,7 @@ export default function LoginPage() {
 
   async function onSubmit(values) {
     console.log(values);
-    setIsLoading(true);
+    setIsLoginLoading(true);
 
     try {
       const res = await signIn("credentials", {
@@ -55,25 +60,35 @@ export default function LoginPage() {
       if (res.error) {
         throw new Error(res.error);
       }
+
+      toast({
+        title: "Login Successful",
+        description: "You have successfully logged in.",
+      });
       form.reset();
       router.push("/dashboard");
     } catch (error) {
       console.log(error);
+      toast({
+        variant: "destructive",
+        title: "Something went wrong",
+        description: error.message,
+      });
     } finally {
-      setIsLoading(false);
+      setIsLoginLoading(false);
     }
   }
 
   async function handleGoogleAuth() {
-    setIsLoading(true);
+    setIsGoogleLoading(true);
     await signIn("google", {callbackUrl: "/dashboard"});
-    setIsLoading(false);
+    setIsGoogleLoading(false);
   }
 
   async function handleGithubAuth() {
-    setIsLoading(true);
+    setIsGithubLoading(true);
     await signIn("github", {callbackUrl: "/dashboard"});
-    setIsLoading(false);
+    setIsGithubLoading(false);
   }
 
   return (
@@ -94,7 +109,11 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email" {...field} />
+                    <Input
+                      autoComplete="email"
+                      placeholder="Email"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -107,14 +126,23 @@ export default function LoginPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Password" {...field} />
+                    <Input
+                      type="password"
+                      autoComplete="password"
+                      placeholder="Password"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading ? (
+            <Button
+              className="w-full"
+              type="submit"
+              disabled={isLoginLoading || isGoogleLoading || isGithubLoading}
+            >
+              {isLoginLoading ? (
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" />
               ) : null}
               Login
@@ -135,10 +163,10 @@ export default function LoginPage() {
           <Button
             variant="outline"
             type="button"
-            disabled={isLoading}
+            disabled={isLoginLoading || isGoogleLoading || isGithubLoading}
             onClick={handleGoogleAuth}
           >
-            {isLoading ? (
+            {isGoogleLoading ? (
               <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             ) : (
               <Image
@@ -154,10 +182,10 @@ export default function LoginPage() {
           <Button
             variant="outline"
             type="button"
-            disabled={isLoading}
+            disabled={isLoginLoading || isGoogleLoading || isGithubLoading}
             onClick={handleGithubAuth}
           >
-            {isLoading ? (
+            {isGithubLoading ? (
               <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             ) : (
               <Image

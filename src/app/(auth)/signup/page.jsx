@@ -21,6 +21,8 @@ import axios from "axios";
 import {useRouter} from "next/navigation";
 import {signIn} from "next-auth/react";
 import Link from "next/link";
+import {useMutation} from "@tanstack/react-query";
+import {useToast} from "@/hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -35,7 +37,10 @@ const formSchema = z.object({
 });
 
 export default function SignupPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGithubLoading, setIsGithubLoading] = useState(false);
+
+  const {toast} = useToast();
   const router = useRouter();
 
   const form = useForm({
@@ -47,32 +52,46 @@ export default function SignupPage() {
     },
   });
 
-  async function onSubmit(values) {
-    console.log(values);
-    setIsLoading(true);
-
-    try {
-      const res = await axios.post("/api/auth/signup", values);
-      console.log(res.data);
+  const mutation = useMutation({
+    mutationFn: async (data) => {
+      const res = await axios.post("/api/auth/signup", data);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      console.log(data);
+      toast({
+        title: "Account Created successfully",
+        description: "Your account has been created successfully.",
+      });
       form.reset();
       router.push("/login");
-    } catch (error) {
+    },
+    onError: (error) => {
       console.log(error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
+  });
+
+  async function onSubmit(values) {
+    console.log(values);
+
+    mutation.mutate(values);
   }
 
   async function handleGoogleAuth() {
-    setIsLoading(true);
+    setIsGoogleLoading(true);
     await signIn("google", {callbackUrl: "/dashboard"});
-    setIsLoading(false);
+    setIsGoogleLoading(false);
   }
 
   async function handleGithubAuth() {
-    setIsLoading(true);
+    setIsGithubLoading(true);
     await signIn("github", {callbackUrl: "/dashboard"});
-    setIsLoading(false);
+    setIsGithubLoading(false);
   }
 
   return (
@@ -93,7 +112,7 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Name" {...field} />
+                    <Input autoComplete="name" placeholder="Name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -106,7 +125,11 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Email" {...field} />
+                    <Input
+                      autoComplete="email"
+                      placeholder="Email"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -119,14 +142,25 @@ export default function SignupPage() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Password" {...field} />
+                    <Input
+                      type="password"
+                      autoComplete="password"
+                      placeholder="Password"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading ? (
+            <Button
+              className="w-full"
+              type="submit"
+              disabled={
+                mutation.isPending || isGoogleLoading || isGithubLoading
+              }
+            >
+              {mutation.isPending ? (
                 <Loader2 className="mr-2 h-6 w-6 animate-spin" />
               ) : null}
               Sign Up
@@ -147,10 +181,10 @@ export default function SignupPage() {
           <Button
             variant="outline"
             type="button"
-            disabled={isLoading}
+            disabled={mutation.isPending || isGoogleLoading || isGithubLoading}
             onClick={handleGoogleAuth}
           >
-            {isLoading ? (
+            {isGoogleLoading ? (
               <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             ) : (
               <Image
@@ -166,10 +200,10 @@ export default function SignupPage() {
           <Button
             variant="outline"
             type="button"
-            disabled={isLoading}
+            disabled={mutation.isPending || isGoogleLoading || isGithubLoading}
             onClick={handleGithubAuth}
           >
-            {isLoading ? (
+            {isGithubLoading ? (
               <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             ) : (
               <Image
