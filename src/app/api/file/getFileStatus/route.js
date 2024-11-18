@@ -2,7 +2,7 @@ import {auth} from "@/auth";
 import {NextResponse} from "next/server";
 
 export async function GET(request) {
-  const key = new URL(request.url).searchParams.get("key");
+  const id = new URL(request.url).searchParams.get("id");
 
   const session = await auth();
   console.log(session);
@@ -13,7 +13,7 @@ export async function GET(request) {
   try {
     const file = await prisma.file.findFirst({
       where: {
-        key,
+        id,
         userId: session.user.id,
       },
     });

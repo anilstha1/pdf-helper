@@ -1,6 +1,11 @@
 import {auth} from "@/auth";
+import {prisma} from "@/lib/db";
 import {createUploadthing} from "uploadthing/next";
 import {UploadThingError} from "uploadthing/server";
+import {PDFLoader} from "@langchain/community/document_loaders/fs/pdf";
+import {OpenAIEmbeddings} from "@langchain/openai";
+import {PineconeStore} from "@langchain/pinecone";
+import {pc} from "@/lib/pinecone";
 
 const f = createUploadthing();
 
@@ -15,10 +20,53 @@ export const ourFileRouter = {
       return {userId: session.user.id};
     })
     .onUploadComplete(async ({metadata, file}) => {
-      console.log("Upload complete for userId:", metadata.userId);
+      const createdFile = await prisma.file.create({
+        data: {
+          name: file.name,
+          url: file.url,
+          key: file.key,
+          userId: metadata.userId,
+          uploadStatus: "PROCESSING",
+        },
+      });
 
-      console.log("file url", file.url);
+      try {
+        const res = await fetch(file.url);
+        const blob = await res.blob();
+        const loader = new PDFLoader(blob);
+        const pageLevelDocs = await loader.load();
 
-      return {uploadedBy: metadata.userId};
+        const pagesAmt = pageLevelDocs.length;
+
+        const pineconeIndex = pc.Index("pdf-helper");
+
+        const embeddings = new OpenAIEmbeddings({
+          openAIApiKey: process.env.OPENAI_API_KEY,
+        });
+
+        await PineconeStore.fromDocuments(pageLevelDocs, embeddings, {
+          pineconeIndex,
+          namespace: createdFile.id,
+        });
+
+        await prisma.file.update({
+          where: {
+            id: createdFile.id,
+          },
+          data: {
+            uploadStatus: "SUCCESS",
+          },
+        });
+      } catch (error) {
+        console.log(error);
+        await prisma.file.update({
+          where: {
+            id: createdFile.id,
+          },
+          data: {
+            uploadStatus: "FAILED",
+          },
+        });
+      }
     }),
 };

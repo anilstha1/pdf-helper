@@ -2,25 +2,26 @@ datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
 }
- 
+
 generator client {
   provider = "prisma-client-js"
 }
- 
+
 model User {
-  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
-  email         String?         @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  file          File[]
+  files         File[]
   accounts      Account[]
-  
+  messages      Message[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
- 
+
 model Account {
   id                String  @id @default(auto()) @map("_id") @db.ObjectId
   userId            String  @db.ObjectId
@@ -34,23 +35,43 @@ model Account {
   scope             String?
   id_token          String? @db.String
   session_state     String?
- 
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
- 
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
   @@unique([provider, providerAccountId])
 }
- 
 
-model File{
-    id String @id @default(auto()) @map("_id") @db.ObjectId
-    name String
-    url String
-    key String
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-    userId String @db.ObjectId
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  FAILED
+  SUCCESS
+}
+
+model File {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  url       String
+  key       String
+  uploadStatus UploadStatus @default(PENDING)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String    @db.ObjectId
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  text          String
+  isUserMessage Boolean
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String   @db.ObjectId
+  file          File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId        String   @db.ObjectId
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

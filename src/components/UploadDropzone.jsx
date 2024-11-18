@@ -1,5 +1,6 @@
 "use client";
 import {useUploadThing} from "@/lib/uploadthing";
+import {useMutation} from "@tanstack/react-query";
 import axios from "axios";
 import {Upload, File, Loader2} from "lucide-react";
 import {useRouter} from "next/navigation";
@@ -11,27 +12,23 @@ function UploadDropzone() {
   const isSubscribed = true;
   const router = useRouter();
 
-  const uploadFile = async (data) => {
-    try {
-      const res = await axios.post("/api/file/addFile", data);
-      console.log(res);
-
-      router.push(`/dashboard/${res.data.file.id}`);
-    } catch (error) {
-      console.log(error);
-    }
-  };
+  const mutation = useMutation({
+    mutationFn: async (key) => {
+      const res = await axios.get(`/api/file/getFile?key=${key}`);
+      return res.data.file;
+    },
+    onSuccess: (data) => {
+      console.log(data);
+      setIsLoading(false);
+      router.push(`/dashboard/${data.id}`);
+    },
+    retry: true,
+    retryDelay: 500,
+  });
 
   const {startUpload} = useUploadThing("pdfUploader", {
     onClientUploadComplete: async (res) => {
       console.log("Files: ", res);
-
-      await uploadFile({
-        name: res[0].name,
-        url: res[0].url,
-        key: res[0].key,
-      });
-      setIsLoading(false);
     },
     onUploadError: (error) => {
       console.log("Error: ", error);
@@ -50,6 +47,18 @@ function UploadDropzone() {
           setIsLoading(true);
 
           const res = await startUpload(file);
+          console.log(res);
+
+          if (!res) {
+            setIsLoading(false);
+            return toast({
+              variant: "destructive",
+              title: "Something went wrong",
+              description: "Failed to upload file",
+            });
+          }
+
+          mutation.mutate(res[0].key);
         }}
       >
         {({getRootProps, getInputProps, acceptedFiles}) => (
