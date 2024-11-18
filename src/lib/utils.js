@@ -12,3 +12,11 @@ export function formatDate(dateStr) {
     month: "short",
   }).format(date);
 }
+
+export function formatTime(dateStr) {
+  const date = new Date(dateStr);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}

@@ -1,4 +1,4 @@
-import {cn} from "@/lib/utils";
+import {cn, formatTime} from "@/lib/utils";
 import {User} from "lucide-react";
 import Image from "next/image";
 import React, {forwardRef} from "react";
@@ -57,6 +57,16 @@ const Message = forwardRef(({message}, ref) => {
           ) : (
             message.text
           )}
+          {message.id !== "loading-message" ? (
+            <div
+              className={cn("text-xs select-none mt-2 w-full text-right", {
+                "text-zinc-500": !message.isUserMessage,
+                "text-blue-300": message.isUserMessage,
+              })}
+            >
+              {formatTime(message.createdAt)}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
